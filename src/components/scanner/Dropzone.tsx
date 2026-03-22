@@ -78,7 +78,7 @@ export default function Dropzone({ onImageLoaded }: DropzoneProps) {
           flex flex-col items-center justify-center gap-4
           transition-all duration-200 cursor-pointer outline-none
           ${isDragging
-            ? "border-lime-400 bg-lime-400/5"
+            ? "border-accent bg-accent/5"
             : "border-zinc-700 bg-zinc-900 hover:border-zinc-500 hover:bg-zinc-800/60"
           }
         `}
@@ -86,7 +86,7 @@ export default function Dropzone({ onImageLoaded }: DropzoneProps) {
         <div className={`
           w-14 h-14 rounded-xl flex items-center justify-center text-2xl
           transition-colors duration-200
-          ${isDragging ? "bg-lime-400/15" : "bg-zinc-800"}
+          ${isDragging ? "bg-accent/15" : "bg-zinc-800"}
         `}>
           📄
         </div>
