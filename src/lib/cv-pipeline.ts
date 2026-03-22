@@ -84,3 +84,57 @@ export function detectDocumentCorners(canvas: HTMLCanvasElement): Corner[] | nul
     )
   }
 }
+
+function getCSSVariable(name: string): string {
+  return getComputedStyle(document.documentElement)
+    .getPropertyValue(name)
+    .trim()
+}
+
+export function drawCornerOverlay(
+  overlayCanvas: HTMLCanvasElement,
+  corners: Corner[],
+  imageWidth: number,
+  imageHeight: number
+) {
+  overlayCanvas.width = imageWidth
+  overlayCanvas.height = imageHeight
+
+  const ctx = overlayCanvas.getContext("2d");
+  if (!ctx) return
+
+  const accent = getCSSVariable('--color-accent')
+  const accentDark = getCSSVariable('--color-accent-dark')
+
+  ctx.clearRect(0, 0, imageWidth, imageHeight)
+
+  // visualizing the document outline
+  ctx.beginPath()
+  ctx.moveTo(corners[0].x, corners[0].y)
+  corners.forEach((c) => ctx.lineTo(c.x, c.y))
+  ctx.closePath()
+  ctx.strokeStyle = accent
+  ctx.lineWidth = Math.max(2, imageWidth * 0.003)
+  ctx.stroke()
+
+  // visualizing the corner dots for the user
+  corners.forEach((c) => {
+    ctx.beginPath()
+    ctx.arc(c.x, c.y, Math.max(10, imageWidth * 0.02), 0, Math.PI * 2)
+    ctx.fillStyle = accent
+    ctx.fill()
+    ctx.strokeStyle = accentDark
+    ctx.lineWidth = 2
+    ctx.stroke()
+  })
+}
+
+export function getDefaultCorners(width: number, height: number): Corner[] {
+  const margin = Math.min(width, height) * 0.05
+  return [
+    { x: margin, y: margin },
+    { x: width - margin, y: margin },
+    { x: width - margin, y: height - margin },
+    { x: margin, y: height - margin },
+  ]
+}
