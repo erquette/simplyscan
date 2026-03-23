@@ -5,9 +5,16 @@ import { detectDocumentCorners, drawCornerOverlay, getDefaultCorners, Corner } f
 type ScannerViewProps = {
   previewUrl: string
   onReset: () => void
+  onContinue: (corners: Corner[]) => void
+  onDetectionDone: () => void
 }
 
-export default function ScannerView({ previewUrl, onReset }: ScannerViewProps) {
+export default function ScannerView({
+  previewUrl,
+  onReset,
+  onContinue,
+  onDetectionDone,
+}: ScannerViewProps) {
   const imageCanvasRef = useRef<HTMLCanvasElement>(null)
   const overlayCanvasRef = useRef<HTMLCanvasElement>(null)
   const [corners, setCorners] = useState<Corner[] | null>(null)
@@ -20,41 +27,26 @@ export default function ScannerView({ previewUrl, onReset }: ScannerViewProps) {
       const overlay = overlayCanvasRef.current
       if (!canvas || !overlay) return
 
-      // draw image onto canvas so OpenCV can read it
       canvas.width = img.naturalWidth
       canvas.height = img.naturalHeight
-      const ctx = canvas.getContext("2d")
-      ctx?.drawImage(img, 0, 0)
+      canvas.getContext("2d")?.drawImage(img, 0, 0)
 
-      // run edge detection algorithm
       const found = detectDocumentCorners(canvas)
       const finalCorners = found ?? getDefaultCorners(img.naturalWidth, img.naturalHeight)
+
       setCorners(finalCorners)
       setDetecting(false)
       drawCornerOverlay(overlay, finalCorners, img.naturalWidth, img.naturalHeight)
+      onDetectionDone()
     }
     img.src = previewUrl
-  }, [previewUrl])
+  }, [previewUrl, onDetectionDone])
 
   return (
     <div className="flex flex-col gap-4 w-full">
       <div className="relative w-full rounded-xl overflow-hidden border border-zinc-800 bg-black">
-        <canvas
-          ref={imageCanvasRef}
-          className="block w-full h-auto"
-        />
-        <canvas
-          ref={overlayCanvasRef}
-          className="absolute inset-0 w-full h-full"
-        />
-        {detecting && (
-          <div className="absolute inset-0 flex items-center justify-center bg-black/60">
-            <div className="flex items-center gap-2">
-              <div className="w-2 h-2 rounded-full bg-yellow-400 animate-pulse" />
-              <span className="text-xs font-mono text-zinc-400">detecting...</span>
-            </div>
-          </div>
-        )}
+        <canvas ref={imageCanvasRef} className="block w-full h-auto" />
+        <canvas ref={overlayCanvasRef} className="absolute inset-0 w-full h-full" />
       </div>
 
       <div className="grid grid-cols-2 gap-3">
@@ -68,6 +60,7 @@ export default function ScannerView({ previewUrl, onReset }: ScannerViewProps) {
         <button
           type="button"
           disabled={detecting}
+          onClick={() => corners && onContinue(corners)}
           className="py-3 rounded-xl bg-accent text-accent-dark text-sm font-semibold hover:bg-accent/90 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
         >
           Continue
