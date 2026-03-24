@@ -138,3 +138,116 @@ export function getDefaultCorners(width: number, height: number): Corner[] {
     { x: margin, y: height - margin },
   ]
 }
+
+const DOCUMENT_SIZES = {
+  A4: { width: 1240, height: 1754 },
+}
+
+export type FilterMode = 'original' | 'bw' | 'enhance'
+
+export function applyPerspectiveWarp(
+  sourceCanvas: HTMLCanvasElement,
+  corners: Corner[]
+): HTMLCanvasElement {
+  const src = cv.imread(sourceCanvas)
+
+  const [tl, tr, br, bl] = corners
+
+  // determine orientation using corner distances
+  const widthTop = Math.hypot(tr.x - tl.x, tr.y - tl.y)
+  const widthBot = Math.hypot(br.x - bl.x, br.y - bl.y)
+  const avgWidth = (widthTop + widthBot) / 2
+
+  const heightLeft = Math.hypot(bl.x - tl.x, bl.y - tl.y)
+  const heightRight = Math.hypot(br.x - tr.x, br.y - tr.y)
+  const avgHeight = (heightLeft + heightRight) / 2
+
+  const isLandscape = avgWidth > avgHeight
+  const W = isLandscape ? DOCUMENT_SIZES.A4.height : DOCUMENT_SIZES.A4.width
+  const H = isLandscape ? DOCUMENT_SIZES.A4.width : DOCUMENT_SIZES.A4.height
+
+  const srcPts = cv.matFromArray(4, 1, cv.CV_32FC2, [
+    tl.x, tl.y,
+    tr.x, tr.y,
+    br.x, br.y,
+    bl.x, bl.y,
+  ])
+  const dstPts = cv.matFromArray(4, 1, cv.CV_32FC2, [
+    0, 0,
+    W, 0,
+    W, H,
+    0, H,
+  ])
+
+  const M = cv.getPerspectiveTransform(srcPts, dstPts)
+  const warped = new cv.Mat()
+  cv.warpPerspective(src, warped, M, new cv.Size(W, H))
+
+  const outputCanvas = document.createElement('canvas')
+  outputCanvas.width = W
+  outputCanvas.height = H
+  cv.imshow(outputCanvas, warped);
+
+  [src, srcPts, dstPts, M, warped].forEach((m) => { try { m.delete() } catch {} })
+
+  return outputCanvas
+}
+
+export function applyFilter(
+  warpedCanvas: HTMLCanvasElement,
+  mode: FilterMode,
+  outputCanvas: HTMLCanvasElement
+) {
+  const src = cv.imread(warpedCanvas)
+  let result = new cv.Mat()
+
+  try {
+    if (mode === 'original') {
+      src.copyTo(result)
+
+    } else if (mode === 'bw') {
+      const gray = new cv.Mat()
+      cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY)
+      cv.adaptiveThreshold(
+        gray, result, 255,
+        cv.ADAPTIVE_THRESH_GAUSSIAN_C,
+        cv.THRESH_BINARY,
+        21, 10
+      )
+      gray.delete()
+
+    } else if (mode === 'enhance') {
+      const bgr = new cv.Mat()
+      const lab = new cv.Mat()
+      const channels = new cv.MatVector()
+
+      cv.cvtColor(src, bgr, cv.COLOR_RGBA2BGR)
+      cv.cvtColor(bgr, lab, cv.COLOR_BGR2Lab)
+      cv.split(lab, channels)
+
+      const l = channels.get(0)
+      const lOut = new cv.Mat()
+      const clahe = new cv.CLAHE(3.0, new cv.Size(8, 8))
+      clahe.apply(l, lOut)
+      channels.set(0, lOut)
+
+      const merged = new cv.Mat()
+      cv.merge(channels, merged)
+      const bgrOut = new cv.Mat()
+      cv.cvtColor(merged, bgrOut, cv.COLOR_Lab2BGR)
+      cv.cvtColor(bgrOut, result, cv.COLOR_BGR2RGBA)
+
+      ;[bgr, lab, merged, bgrOut, lOut, l].forEach((m) => { try { m.delete() } catch {} })
+      channels.delete()
+      clahe.delete()
+    }
+
+    outputCanvas.width = result.cols
+    outputCanvas.height = result.rows
+    cv.imshow(outputCanvas, result)
+
+  } finally {
+    src.delete()
+    result.delete()
+  }
+}
