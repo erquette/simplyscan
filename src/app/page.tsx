@@ -6,8 +6,9 @@ import ResultView from "@/components/scanner/ResultView"
 import LoadingModal from "@/components/ui/LoadingModal"
 import { useOpenCV } from "@/hooks/useOpenCV"
 import { Corner } from "@/lib/cv-pipeline"
+import CameraView from "@/components/scanner/CameraView"
 
-type AppStage = "upload" | "scan" | "result"
+type AppStage = "upload" | "camera" | "scan" | "result"
 
 function getLoadingMessage(stage: AppStage, isReady: boolean): string {
   if (!isReady) return "Initializing..."
@@ -61,6 +62,13 @@ export default function Home() {
         {stage === "upload" && (
           <Dropzone
             onImageLoaded={handleImageLoaded}
+            onCamera={() => setStage("camera")}
+          />
+        )}
+        {stage === "camera" && (
+          <CameraView
+            onCapture={handleImageLoaded}
+            onClose={() => setStage("upload")}
           />
         )}
         {stage === "scan" && preview && (
