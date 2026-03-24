@@ -149,9 +149,7 @@ export default function ScannerView({
   return (
     <div className="flex flex-col gap-4 w-full">
       <div
-        className="relative w-full rounded-xl overflow-hidden border border-zinc-800 bg-black"
-        style={{ maxHeight: "65dvh" }}  
-      >
+        className="relative w-full rounded-xl overflow-hidden border border-zinc-800 bg-black">
         <canvas
           ref={imageCanvasRef}
           className="block w-full h-auto"
