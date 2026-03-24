@@ -4,6 +4,7 @@ import { ACCEPTED_IMAGE_TYPES, MAX_FILE_SIZE_BYTES, MAX_FILE_SIZE_MB } from "@/l
 
 type DropzoneProps = {
   onImageLoaded: (file: File, previewUrl: string) => void;
+  onCamera: () => void
 }
 
 type ValidationError = string | null;
@@ -22,7 +23,7 @@ function validateFile(file: File): ValidationError {
   return null;
 }
 
-export default function Dropzone({ onImageLoaded }: DropzoneProps) {
+export default function Dropzone({ onImageLoaded, onCamera }: DropzoneProps) {
   const inputRef = useRef<HTMLInputElement>(null)
   const [isDragging, setIsDragging] = useState(false)
   const [error, setError] = useState<ValidationError>(null)
@@ -112,6 +113,15 @@ export default function Dropzone({ onImageLoaded }: DropzoneProps) {
         className="hidden"
         onChange={handleInputChange}
       />
+
+      <button
+        type="button"
+        onClick={onCamera}
+        className="w-full py-3 rounded-xl border border-zinc-700 bg-zinc-900 text-sm text-zinc-400 hover:border-zinc-500 hover:text-zinc-200 hover:bg-zinc-800/60 transition-all duration-200 flex items-center justify-center gap-2"
+      >
+        <span className="text-base">📷</span>
+        Take a photo
+      </button>
 
       {error && (
         <p className="text-xs text-red-400 text-center px-2">
