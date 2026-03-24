@@ -65,8 +65,11 @@ export default function ResultView({
 
   return (
     <div className="flex flex-col gap-4 w-full">
-      <div className="relative w-full rounded-xl overflow-hidden border border-zinc-800 bg-black">
-        <canvas ref={resultCanvasRef} className="block w-full h-auto" />
+      <div
+        className="relative w-full rounded-xl overflow-hidden border border-zinc-800 bg-black"
+        style={{ maxHeight: "60dvh" }}
+      >
+        <canvas ref={resultCanvasRef} className="block w-full h-auto object-contain" />
       </div>
 
       <div className="flex gap-2">
