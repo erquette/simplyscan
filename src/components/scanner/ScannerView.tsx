@@ -1,5 +1,5 @@
 "use client"
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useRef, useState, useCallback } from "react"
 import { detectDocumentCorners, drawCornerOverlay, getDefaultCorners, Corner } from "@/lib/cv-pipeline"
 
 type ScannerViewProps = {
@@ -12,6 +12,110 @@ export default function ScannerView({ previewUrl, onReset }: ScannerViewProps) {
   const overlayCanvasRef = useRef<HTMLCanvasElement>(null)
   const [corners, setCorners] = useState<Corner[] | null>(null)
   const [detecting, setDetecting] = useState(true)
+  const draggingIndexRef = useRef<number>(-1)
+
+  // convert a mouse/touch event position into canvas pixel coordinates
+  // necessary as the canvas CSS size is not its actual pixel resolution
+  const getCanvasPos = useCallback(
+    (e: MouseEvent | TouchEvent): Corner => {
+      const overlay = overlayCanvasRef.current!
+      const rect = overlay.getBoundingClientRect()
+      const scaleX = overlay.width / rect.width
+      const scaleY = overlay.height / rect.height
+      const source = "touches" in e ? e.touches[0] : e
+      return {
+        x: (source.clientX - rect.left) * scaleX,
+        y: (source.clientY - rect.top) * scaleY,
+      }
+    },
+    []
+  )
+
+  // find which corner (if any) is close enough to the pointer to be grabbed
+  const findNearestCorner = useCallback(
+    (pos: Corner, currentCorners: Corner[]): number => {
+      const overlay = overlayCanvasRef.current!
+      const hitRadius = overlay.width * 0.06
+
+      let bestIndex = -1
+      let bestDistance = Infinity
+
+      currentCorners.forEach((corner, index) => {
+        const distance = Math.hypot(corner.x - pos.x, corner.y - pos.y)
+        if (distance < hitRadius && distance < bestDistance) {
+          bestDistance = distance
+          bestIndex = index
+        }
+      })
+
+      return bestIndex
+    },
+    []
+  )
+
+  const redrawOverlay = useCallback((updatedCorners: Corner[]) => {
+    const overlay = overlayCanvasRef.current
+    if (!overlay) return
+    drawCornerOverlay(overlay, updatedCorners, overlay.width, overlay.height)
+  }, [])
+
+  useEffect(() => {
+    const overlay = overlayCanvasRef.current
+    if (!overlay || !corners) return
+
+    const handlePointerDown = (e: MouseEvent | TouchEvent) => {
+      e.preventDefault()
+      const pos = getCanvasPos(e)
+      const index = findNearestCorner(pos, corners)
+      draggingIndexRef.current = index
+    }
+
+    const handlePointerMove = (e: MouseEvent | TouchEvent) => {
+      e.preventDefault()
+      if (draggingIndexRef.current === -1) return
+
+      const pos = getCanvasPos(e)
+      const overlay = overlayCanvasRef.current
+      if (!overlay) return
+
+      const clamped: Corner = {
+        x: Math.max(0, Math.min(pos.x, overlay.width)),
+        y: Math.max(0, Math.min(pos.y, overlay.height)),
+      }
+
+      setCorners((prev) => {
+        if (!prev) return prev
+        const updated = prev.map((c, i) =>
+          i === draggingIndexRef.current ? clamped : c
+        )
+        redrawOverlay(updated)
+        return updated
+      })
+    }
+
+    const handlePointerUp = () => {
+      draggingIndexRef.current = -1
+    }
+
+    overlay.addEventListener("mousedown", handlePointerDown)
+    overlay.addEventListener("mousedown", handlePointerDown)
+    window.addEventListener("mousemove", handlePointerMove)
+    window.addEventListener("mouseup", handlePointerUp)
+
+    overlay.addEventListener("touchstart", handlePointerDown, { passive: false })
+    overlay.addEventListener("touchmove", handlePointerMove, { passive: false })
+    overlay.addEventListener("touchend", handlePointerUp)
+
+    return () => {
+      overlay.removeEventListener("mousedown", handlePointerDown)
+      window.removeEventListener("mousemove", handlePointerMove)
+      window.removeEventListener("mouseup", handlePointerUp)
+
+      overlay.removeEventListener("touchstart", handlePointerDown)
+      overlay.removeEventListener("touchmove", handlePointerMove)
+      overlay.removeEventListener("touchend", handlePointerUp)
+    }
+  }, [corners, getCanvasPos, findNearestCorner, redrawOverlay])
 
   useEffect(() => {
     const img = new Image()
@@ -45,16 +149,8 @@ export default function ScannerView({ previewUrl, onReset }: ScannerViewProps) {
         />
         <canvas
           ref={overlayCanvasRef}
-          className="absolute inset-0 w-full h-full"
+          className="absolute inset-0 w-full h-full touch-none"
         />
-        {detecting && (
-          <div className="absolute inset-0 flex items-center justify-center bg-black/60">
-            <div className="flex items-center gap-2">
-              <div className="w-2 h-2 rounded-full bg-yellow-400 animate-pulse" />
-              <span className="text-xs font-mono text-zinc-400">detecting...</span>
-            </div>
-          </div>
-        )}
       </div>
 
       <div className="grid grid-cols-2 gap-3">
